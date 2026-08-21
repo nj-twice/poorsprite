@@ -20,7 +20,13 @@
       # inputsFrom = [
       #   self.packages.x86_64-linux.default
       # ];
+      buildInputs = with pkgs; [
+        raylib
+        gd
+      ];
       packages = with pkgs; [
+        zig
+        zls
         ty
         ruff
         my-python-with-pkgs
