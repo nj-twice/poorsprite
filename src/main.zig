@@ -6,17 +6,17 @@ const SCREEN_WIDTH = 1200;
 const SCREEN_HEIGHT = 800;
 const NAME = "Poorsprite";
 
-const MAX_LOADED_FILES = 1;
+const MAX_LOADED_SPRITES = 1;
 
 const Data = struct {
     show_menu: bool = true,
     select_idx: i32 = 0,
-    files: file.FileList,
+    sprites: file.SpriteList,
 
     fn create(init: std.process.Init) Data {
-        const files = file.ls(init);
+        const sprites = file.ls(init);
         return Data{
-            .files = files,
+            .sprites = sprites,
         };
     }
 
@@ -69,15 +69,15 @@ fn draw(data: *const Data) void {
 }
 
 fn drawSelectionList(data: *const Data) void {
-    const files = data.files;
+    const sprites = data.sprites;
     if (data.show_menu) {
-        if (files.items.len != 0) {
-            for (0..files.items.len) |i| {
+        if (sprites.items.len != 0) {
+            for (0..sprites.items.len) |i| {
                 const color = if (@as(i32, @intCast(i)) == data.select_idx)
                     rl.GREEN
                 else
                     rl.WHITE;
-                const text = files.items[i];
+                const text = sprites.items[i];
                 rl.DrawText(text.ptr, 10, @as(i32, @intCast(10 + 40 * i)), 45, color);
             }
         } else {
@@ -87,7 +87,7 @@ fn drawSelectionList(data: *const Data) void {
 }
 
 fn updateMenu(data: *Data) void {
-    const menu_item_count: i32 = @intCast(data.files.items.len);
+    const menu_item_count: i32 = @intCast(data.sprites.items.len);
     if (rl.IsKeyPressed(rl.KEY_DOWN)) {
         data.select_idx = @mod(data.select_idx + 1, menu_item_count);
     } else if (rl.IsKeyPressed(rl.KEY_UP)) {

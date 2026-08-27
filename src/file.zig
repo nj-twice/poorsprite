@@ -1,12 +1,12 @@
 const root = @import("root");
 const std = @import("std");
 
-pub const FileList = std.ArrayList(File);
-pub const File = []const u8;
+pub const SpriteList = std.ArrayList(Sprite);
+pub const Sprite = []const u8;
 
 /// List files in the current directory.
 /// For now, it is meant to only run once, at startup.
-pub fn ls(init: std.process.Init) FileList {
+pub fn ls(init: std.process.Init) SpriteList {
     const cwd_handle = std.Io.Dir.cwd();
     const cwd_open = std.Io.Dir.openDir(cwd_handle, init.io, ".", .{ .iterate = true }) catch |err| {
         std.log.err("Error: {}\n", .{err});
@@ -19,7 +19,7 @@ pub fn ls(init: std.process.Init) FileList {
     var dirwalker = std.Io.Dir.walkSelectively(cwd_open, init.gpa) catch unreachable;
     defer dirwalker.deinit();
 
-    var filelist: FileList = .empty;
+    var filelist: SpriteList = .empty;
 
     var entry = dirwalker.next(init.io) catch unreachable;
     while (entry != null) {
