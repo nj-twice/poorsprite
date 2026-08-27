@@ -58,7 +58,7 @@ pub fn main(init: std.process.Init) !void {
 }
 
 fn update(data: *Data) void {
-    _ = data; // autofix
+    updateMenu(data);
 }
 
 fn draw(data: *const Data) void {
@@ -70,10 +70,32 @@ fn draw(data: *const Data) void {
 
 fn drawSelectionList(data: *const Data) void {
     const files = data.files;
-    for (0..files.items.len) |i| {
-        std.debug.print("File: {s}\n", .{files.items[i]});
+    if (data.show_menu) {
+        if (files.items.len != 0) {
+            for (0..files.items.len) |i| {
+                const color = if (@as(i32, @intCast(i)) == data.select_idx)
+                    rl.GREEN
+                else
+                    rl.WHITE;
+                const text = files.items[i];
+                rl.DrawText(text.ptr, 10, @as(i32, @intCast(10 + 40 * i)), 45, color);
+            }
+        } else {
+            rl.DrawText("EMPTY", 10, 30, 45, rl.RED);
+        }
     }
-    std.debug.print("-----\n", .{});
+}
+
+fn updateMenu(data: *Data) void {
+    const menu_item_count: i32 = @intCast(data.files.items.len);
+    if (rl.IsKeyPressed(rl.KEY_DOWN)) {
+        data.select_idx = @mod(data.select_idx + 1, menu_item_count);
+    } else if (rl.IsKeyPressed(rl.KEY_UP)) {
+        data.select_idx = @mod(data.select_idx - 1, menu_item_count);
+    }
+    if (rl.IsKeyPressed(rl.KEY_M)) {
+        data.show_menu = !data.show_menu;
+    }
 }
 
 fn drawLoadedList() void {}
