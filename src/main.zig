@@ -88,13 +88,15 @@ fn drawSelectionList(data: *const Data) void {
 
 fn updateMenu(data: *Data) void {
     const menu_item_count: i32 = @intCast(data.sprites.items.len);
-    if (rl.IsKeyPressed(rl.KEY_DOWN)) {
-        data.select_idx = @mod(data.select_idx + 1, menu_item_count);
-    } else if (rl.IsKeyPressed(rl.KEY_UP)) {
-        data.select_idx = @mod(data.select_idx - 1, menu_item_count);
-    }
     if (rl.IsKeyPressed(rl.KEY_M)) {
         data.show_menu = !data.show_menu;
+    }
+    if (menu_item_count != 0) {
+        if (rl.IsKeyPressed(rl.KEY_DOWN)) {
+            data.select_idx = @mod(data.select_idx + 1, menu_item_count);
+        } else if (rl.IsKeyPressed(rl.KEY_UP)) {
+            data.select_idx = @mod(data.select_idx - 1, menu_item_count);
+        }
     }
 }
 
