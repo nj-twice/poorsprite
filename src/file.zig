@@ -1,5 +1,6 @@
 const root = @import("root");
 const std = @import("std");
+const string = root.string;
 
 pub const SpriteList = std.ArrayList(Sprite);
 pub const Sprite = []const u8;
@@ -68,43 +69,10 @@ fn isSpriteDir(entry: std.Io.Dir.Walker.Entry, init: std.process.Init) bool {
         if (sub_entry == null) return false;
 
         const name = sub_entry.?.basename;
-        const actual_suffix: []const u8 = getLastFourChars(name) catch continue;
+        const actual_suffix: []const u8 = string.getLastFourChars(name) catch continue;
         const expected_suffix: []const u8 = ".png";
 
         if (sub_entry.?.kind == .file and
             std.mem.eql(u8, expected_suffix, actual_suffix)) return true;
     }
-}
-
-const StringError = error{TooShort};
-
-fn getLastFourChars(input: []const u8) StringError![]const u8 {
-    if (input.len < 4) return StringError.TooShort;
-    const len = input.len;
-
-    const output: []const u8 = input[len - 4 .. len];
-    return output;
-}
-
-test getLastFourChars {
-    const string1 = "Hello, are you here?";
-    const result1 = "ere?";
-    const string2 = "Hi";
-    const result2 = StringError.TooShort;
-    const string3 = "OJpjdwx";
-    const result3 = "jdwx";
-    try std.testing.expectEqualSlices(
-        u8,
-        result1,
-        getLastFourChars(string1) catch unreachable,
-    );
-    try std.testing.expectEqual(
-        result2,
-        getLastFourChars(string2),
-    );
-    try std.testing.expectEqualSlices(
-        u8,
-        result3,
-        getLastFourChars(string3) catch unreachable,
-    );
 }

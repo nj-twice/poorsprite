@@ -1,6 +1,8 @@
 const rl = @import("raylib");
-const file = @import("file.zig");
+pub const file = @import("file.zig");
+pub const string = @import("string.zig");
 const std = @import("std");
+const frame = @import("frame.zig");
 
 const SCREEN_WIDTH = 1200;
 const SCREEN_HEIGHT = 800;
@@ -8,10 +10,13 @@ const NAME = "Poorsprite";
 
 const MAX_LOADED_SPRITES = 1;
 
-const Data = struct {
+pub const Data = struct {
     show_menu: bool = true,
-    select_idx: i32 = 0,
+    select_idx: i32 = 0, // i32 so that we can use @mod w/ subtraction!
     sprites: file.SpriteList,
+    frames: frame.FrameList = .empty,
+    current_frame: ?u32 = null,
+    animation_timer: f32 = 0.0,
 
     fn create(init: std.process.Init) Data {
         const sprites = file.ls(init);
@@ -47,7 +52,7 @@ pub fn main(init: std.process.Init) !void {
     defer data.drop(init);
 
     while (!rl.WindowShouldClose()) {
-        update(&data);
+        update(&data, init);
 
         rl.BeginDrawing();
         defer rl.EndDrawing();
@@ -57,11 +62,30 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn update(data: *Data) void {
+fn update(data: *Data, init: std.process.Init) void {
     updateMenu(data);
+    if (rl.IsKeyPressed(rl.KEY_ENTER)) {
+        frame.load(data, init);
+    }
+    updateAnimation(data);
+}
+
+fn updateAnimation(data: *Data) void {
+    if (data.frames.items.len == 0) return;
+    if (data.current_frame == null) return;
+
+    data.animation_timer += rl.GetFrameTime();
+    if (data.animation_timer > 0.5) {
+        data.animation_timer = 0;
+        data.current_frame.? = if (data.current_frame.? + 1 >= data.frames.items.len)
+            0
+        else
+            data.current_frame.? + 1;
+    }
 }
 
 fn draw(data: *const Data) void {
+    frame.draw(data);
     if (data.show_menu) {
         drawSelectionList(data);
         drawLoadedList();
@@ -73,7 +97,7 @@ fn drawSelectionList(data: *const Data) void {
     if (data.show_menu) {
         if (sprites.items.len != 0) {
             for (0..sprites.items.len) |i| {
-                const color = if (@as(i32, @intCast(i)) == data.select_idx)
+                const color = if (i == data.select_idx)
                     rl.GREEN
                 else
                     rl.WHITE;
@@ -93,7 +117,7 @@ fn updateMenu(data: *Data) void {
     }
     if (menu_item_count != 0) {
         if (rl.IsKeyPressed(rl.KEY_DOWN)) {
-            data.select_idx = @mod(data.select_idx + 1, menu_item_count);
+            data.select_idx = @mod((data.select_idx) + 1, menu_item_count);
         } else if (rl.IsKeyPressed(rl.KEY_UP)) {
             data.select_idx = @mod(data.select_idx - 1, menu_item_count);
         }
