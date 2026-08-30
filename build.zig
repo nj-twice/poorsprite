@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "games",
+        .name = "poorsprite",
         .root_module = module,
     });
 
