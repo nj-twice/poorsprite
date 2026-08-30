@@ -13,13 +13,13 @@ const MAX_LOADED_SPRITES = 1;
 pub const Data = struct {
     show_menu: bool = true,
     select_idx: i32 = 0, // i32 so that we can use @mod w/ subtraction!
-    sprites: file.SpriteList,
+    sprites: file.FilenameList,
     frames: frame.FrameList = .empty,
     current_frame: ?u32 = null,
     animation_timer: f32 = 0.0,
 
     fn create(init: std.process.Init) Data {
-        const sprites = file.ls(init);
+        const sprites = file.lsSpriteDirs(init);
         return Data{
             .sprites = sprites,
         };

@@ -2,77 +2,121 @@ const root = @import("root");
 const std = @import("std");
 const string = root.string;
 
-pub const SpriteList = std.ArrayList(Sprite);
-pub const Sprite = []const u8;
+const Dir = std.Io.Dir;
 
-/// List "sprite directories" in the current directory.
-/// For now, it is meant to only run once, at startup.
-pub fn ls(init: std.process.Init) SpriteList {
-    const cwd_handle = std.Io.Dir.cwd();
-    const cwd_open = std.Io.Dir.openDir(cwd_handle, init.io, ".", .{ .iterate = true }) catch |err| {
-        std.log.err("Error: {}\n", .{err});
-        @panic("Couldn't open CWD!\n");
-    };
-    defer cwd_open.close(init.io);
+pub const Filename = []const u8;
+pub const FilenameList = std.ArrayList(Filename);
+
+pub const Entry = Dir.Walker.Entry;
+const EntryList = std.ArrayList(Entry);
+
+/// List files in current directory and return the proper entries.
+/// You can optionally pass a filter_fn so that only entries for which the
+/// filter evaluates to true are returned.
+pub fn ls(
+    init: std.process.Init,
+    subdir: []const u8,
+    filter_fn: *const fn (init: std.process.Init, entry: Entry) bool,
+) Dir.OpenError!EntryList {
+    const cwd = try std.Io.Dir.openDir(
+        Dir.cwd(),
+        init.io,
+        subdir,
+        .{ .iterate = true },
+    );
+    defer cwd.close(init.io);
 
     // We use gpa because it's a small local allocation.
     // What we actually need will be copied later.
-    var dirwalker = std.Io.Dir.walkSelectively(cwd_open, init.gpa) catch unreachable;
+    var dirwalker = Dir.walkSelectively(cwd, init.gpa) catch unreachable;
     defer dirwalker.deinit();
 
-    var filelist: SpriteList = .empty;
+    var entry_list: EntryList = .empty;
 
     while (true) {
-        const entry = dirwalker.next(init.io) catch unreachable;
-        if (entry == null) break;
-        if (!isSpriteDir(entry.?, init)) continue;
+        const maybe_entry = dirwalker.next(init.io) catch unreachable;
+        if (maybe_entry == null) break;
+        const entry = maybe_entry.?;
+        if (!filter_fn(init, entry)) continue;
 
-        // A subsequent call to next() renders the filename slice invalid memory.
-        // We need to copy the bytes to an owned slice.
-        const filename = entry.?.basename;
-        const filename_copy = std.mem.Allocator.dupe(init.arena.allocator(), u8, filename) catch unreachable;
+        // Subsequent calls to next() invalidate previous iterations of slices inside entry.
+        // We need to copy the bytes to owned slices.
+        const path_copy: [:0]const u8 = std.mem.Allocator.dupeSentinel(
+            init.arena.allocator(),
+            u8,
+            entry.path,
+            0,
+        ) catch unreachable;
+        const basename_copy: [:0]const u8 = std.mem.Allocator.dupeSentinel(
+            init.arena.allocator(),
+            u8,
+            entry.basename,
+            0,
+        ) catch unreachable;
+        // NOTE: We used dupeSentinel and not regular dupe because otherwise,
+        // the copied slices wouldn't satisfy the type requirements of Entry fields.
+        // An alternative solution would be to @ptrCast the copies, but this results in
+        // incorrect results when taking the raw ptr to the slice later.
+        // This happens when casting to a C ptr in rl.DrawText(), for example.
+        const entry_copy: Entry = .{
+            .kind = entry.kind,
+            .dir = entry.dir,
+            .basename = basename_copy,
+            .path = path_copy,
+        };
 
-        filelist.append(init.arena.allocator(), filename_copy) catch |err| {
-            std.log.err("Error: {}\n", .{err});
-            @panic("Error\n");
+        entry_list.append(init.arena.allocator(), entry_copy) catch |err| {
+            std.debug.panic("Error: {}\n", .{err});
         };
     }
 
-    return filelist;
+    return entry_list;
+}
+
+pub fn entriesToFilenames(init: std.process.Init, entry_list: EntryList) FilenameList {
+    var filename_list: FilenameList = .empty;
+    const entry_len = entry_list.items.len;
+    for (0..entry_len) |i| {
+        filename_list.append(
+            init.arena.allocator(),
+            entry_list.items[i].basename,
+        ) catch |err| {
+            std.debug.panic("Error: {}\n", .{err});
+        };
+    }
+
+    return filename_list;
+}
+
+/// List "sprite directories" in the current directory.
+pub fn lsSpriteDirs(init: std.process.Init) FilenameList {
+    const sprite_dirs = ls(init, ".", isSpriteDir) catch unreachable;
+    const sprite_filenames = entriesToFilenames(init, sprite_dirs);
+    return sprite_filenames;
+}
+
+pub fn noFilter(init: std.process.Init, entry: Entry) bool {
+    _ = init;
+    _ = entry;
+    return true;
 }
 
 /// Takes a directory entry and returns whether or not it is a "sprite directory".
 /// A sprite directory is a directory that contains at least one PNG file.
 /// Determining whether or not the sprite can actually be loaded is beyond this
 /// function's responsibility.
-fn isSpriteDir(entry: std.Io.Dir.Walker.Entry, init: std.process.Init) bool {
-    if (entry.kind != .directory) {
-        std.log.debug("{s} is NOT a directory", .{entry.basename});
-        return false;
-    }
+fn isSpriteDir(init: std.process.Init, entry: Entry) bool {
+    if (entry.kind != .directory) return false;
+    const sub_entries = ls(init, entry.basename, isPngFile) catch unreachable;
+    // A single "PNG file" is sufficient for the whole dir to qualify as sprite dir.
+    if (sub_entries.items.len == 0) return false else return true;
+}
 
-    // Open the directory and walk through it
-    const dir_open = std.Io.Dir.openDir(
-        entry.dir,
-        init.io,
-        entry.basename,
-        .{ .iterate = true },
-    ) catch |err|
-        std.debug.panic("Couldn't open {}. Error: {}\n", .{ entry, err });
-    defer dir_open.close(init.io);
-
-    var dirwalker = std.Io.Dir.walkSelectively(dir_open, init.gpa) catch unreachable;
-    defer dirwalker.deinit();
-
-    while (true) {
-        const sub_entry = dirwalker.next(init.io) catch unreachable;
-        if (sub_entry == null) return false;
-
-        const name = sub_entry.?.basename;
-        const actual_suffix: []const u8 = string.getLastFourChars(name) catch continue;
-        const expected_suffix: []const u8 = ".png";
-
-        if (sub_entry.?.kind == .file and
-            std.mem.eql(u8, expected_suffix, actual_suffix)) return true;
-    }
+fn isPngFile(init: std.process.Init, entry: Entry) bool {
+    _ = init;
+    if (entry.kind != .file) return false;
+    const name = entry.basename;
+    const actual_suffix: []const u8 = string.getLastFourChars(name) catch return false;
+    const expected_suffix: []const u8 = ".png";
+    if (std.mem.eql(u8, expected_suffix, actual_suffix)) return true else return false;
 }

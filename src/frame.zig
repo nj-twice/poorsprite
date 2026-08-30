@@ -3,14 +3,18 @@ const file = root.file;
 const string = root.string;
 const std = @import("std");
 const rl = @import("raylib");
+
 pub const FrameList = std.ArrayList(rl.Texture2D);
-const FrameName = []const u8;
-const FrameNameList = std.ArrayList(FrameName);
+const Filename = file.Filename;
+const FilenameList = file.FilenameList;
+const Entry = file.Entry;
 
 /// Load the individual sprite frames to memory.
 /// This function doesn't need to know the CWD because rl.LoadTexture() already
 /// operates relative to CWD.
 pub fn load(data: *root.Data, init: std.process.Init) void {
+    if (data.sprites.items.len == 0) return;
+
     const select_idx: u32 = @intCast(data.select_idx);
     const selected_sprite = data.sprites.items[select_idx];
 
@@ -36,47 +40,23 @@ pub fn load(data: *root.Data, init: std.process.Init) void {
 /// From the selected sprite directory, extract then sort the names of all valid frames.
 /// Currently, a valid frame has the filename "{int}.png".
 /// Later, we might use more elaborate regex.
-fn listFramesNames(init: std.process.Init, sprite: file.Sprite) FrameNameList {
-    const sprite_dir_open = std.Io.Dir.openDir(
-        std.Io.Dir.cwd(),
-        init.io,
-        sprite,
-        .{ .iterate = true },
-    ) catch |err| std.debug.panic("Couldn't open {s}. Error: {}\n", .{ sprite, err });
-    defer sprite_dir_open.close(init.io);
-
-    var dirwalker = std.Io.Dir.walkSelectively(sprite_dir_open, init.gpa) catch unreachable;
-    defer dirwalker.deinit();
-
-    var frame_name_list: FrameNameList = .empty;
-
-    while (true) {
-        const entry = dirwalker.next(init.io) catch unreachable;
-        if (entry == null) break;
-        if (entry.?.kind != .file) continue;
-
-        const frame_name = entry.?.basename;
-
-        if (!isValidFrame(frame_name)) continue;
-
-        const filename_copy = std.mem.Allocator.dupe(init.arena.allocator(), u8, frame_name) catch unreachable;
-
-        frame_name_list.append(init.arena.allocator(), filename_copy) catch |err|
-            std.debug.panic("Error: {}\n", .{err});
-    }
-
-    std.mem.sort(FrameName, frame_name_list.items, {}, lessThan);
-
-    return frame_name_list;
+fn listFramesNames(init: std.process.Init, sprite: Filename) FilenameList {
+    const frames = file.ls(init, sprite, isValidFrame) catch unreachable;
+    const frames_names = file.entriesToFilenames(init, frames);
+    std.mem.sort(Filename, frames_names.items, {}, lessThan);
+    return frames_names;
 }
 
 // NOTE: We can check that it is properly sorting by swapping a and b.
-fn lessThan(_: void, a: FrameName, b: FrameName) bool {
+fn lessThan(_: void, a: Filename, b: Filename) bool {
     return std.mem.lessThan(u8, a, b);
 }
 
 /// We assume frame_name ends in ".png".
-fn isValidFrame(frame_name: FrameName) bool {
+fn isValidFrame(init: std.process.Init, entry: Entry) bool {
+    _ = init;
+    if (entry.kind != .file) return false;
+    const frame_name = entry.basename;
     const no_suffix_name = string.removeSuffix(frame_name) catch return false;
     _ = std.fmt.parseInt(u32, no_suffix_name, 10) catch return false;
     return true;
