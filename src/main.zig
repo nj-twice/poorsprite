@@ -65,8 +65,10 @@ pub fn main(init: std.process.Init) !void {
 fn update(data: *Data, init: std.process.Init) void {
     updateMenu(data);
     if (rl.IsKeyPressed(rl.KEY_ENTER)) {
-        frame.load(data, init);
+        frame.unload(data);
+        frame.load(init, data);
     }
+    if (rl.IsKeyPressed(rl.KEY_BACKSPACE)) frame.unload(data);
     updateAnimation(data);
 }
 

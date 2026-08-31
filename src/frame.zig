@@ -12,7 +12,7 @@ const Entry = file.Entry;
 /// Load the individual sprite frames to memory.
 /// This function doesn't need to know the CWD because rl.LoadTexture() already
 /// operates relative to CWD.
-pub fn load(data: *root.Data, init: std.process.Init) void {
+pub fn load(init: std.process.Init, data: *root.Data) void {
     if (data.sprites.items.len == 0) return;
 
     const select_idx: u32 = @intCast(data.select_idx);
@@ -35,6 +35,15 @@ pub fn load(data: *root.Data, init: std.process.Init) void {
         data.frames.append(init.arena.allocator(), texture) catch unreachable;
     }
     data.current_frame = 0;
+}
+
+pub fn unload(data: *root.Data) void {
+    if (data.frames.items.len == 0 or data.current_frame == null) return;
+    for (0..data.frames.items.len) |i| {
+        rl.UnloadTexture(data.frames.items[i]);
+    }
+    data.current_frame = null;
+    data.frames.clearRetainingCapacity();
 }
 
 /// From the selected sprite directory, extract then sort the names of all valid frames.
