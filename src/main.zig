@@ -94,18 +94,15 @@ fn draw(data: *const Data) void {
 
 fn drawSelectionList(data: *const Data) void {
     const sprites = data.sprites;
-    if (data.show_menu) {
-        if (sprites.items.len != 0) {
-            for (0..sprites.items.len) |i| {
-                const color = if (i == data.select_idx)
-                    rl.GREEN
-                else
-                    rl.WHITE;
-                const text = sprites.items[i];
-                rl.DrawText(text.ptr, 10, @as(i32, @intCast(10 + 40 * i)), 45, color);
-            }
-        } else {
-            rl.DrawText("EMPTY", 10, 30, 45, rl.RED);
+    if (!data.show_menu) return;
+    if (sprites.items.len == 0) rl.DrawText("EMPTY", 10, 30, 45, rl.RED) else {
+        for (0..sprites.items.len) |i| {
+            const color = if (i == data.select_idx)
+                rl.GREEN
+            else
+                rl.WHITE;
+            const text = sprites.items[i];
+            rl.DrawText(text.ptr, 10, @as(i32, @intCast(10 + 40 * i)), 45, color);
         }
     }
 }
