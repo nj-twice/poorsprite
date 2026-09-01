@@ -18,10 +18,10 @@ pub fn update(data: *Data) void {
     data.timer += rl.GetFrameTime();
     if (data.timer > 0.5) {
         data.timer = 0;
-        data.current_frame.? = if (data.current_frame.? + 1 >= data.frames.items.len)
-            0
-        else
-            data.current_frame.? + 1;
+        data.current_frame.? = @mod(
+            data.current_frame.? + 1,
+            @as(u32, @intCast(data.frames.items.len)),
+        );
     }
 }
 pub fn draw(data: *const Data) void {
