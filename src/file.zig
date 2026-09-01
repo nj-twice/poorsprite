@@ -1,6 +1,8 @@
-const root = @import("root");
+//! Interface to the filesystem.
+//! List and filter files.
+
 const std = @import("std");
-const string = root.string;
+const string = @import("string.zig");
 
 const Dir = std.Io.Dir;
 
@@ -11,8 +13,8 @@ pub const Entry = Dir.Walker.Entry;
 const EntryList = std.ArrayList(Entry);
 
 /// List files in current directory and return the proper entries.
-/// You can optionally pass a filter_fn so that only entries for which the
-/// filter evaluates to true are returned.
+/// Optionally takes a filter_fn so that only entries for which the filter
+/// evaluates to true are returned.
 pub fn ls(
     init: std.process.Init,
     subdir: []const u8,
@@ -73,6 +75,7 @@ pub fn ls(
     return entry_list;
 }
 
+/// Convert a list of entries to a list of filenames.
 pub fn entriesToFilenames(init: std.process.Init, entry_list: EntryList) FilenameList {
     var filename_list: FilenameList = .empty;
     const entry_len = entry_list.items.len;
@@ -90,33 +93,47 @@ pub fn entriesToFilenames(init: std.process.Init, entry_list: EntryList) Filenam
 
 /// List "sprite directories" in the current directory.
 pub fn lsSpriteDirs(init: std.process.Init) FilenameList {
-    const sprite_dirs = ls(init, ".", isSpriteDir) catch unreachable;
+    const sprite_dirs = ls(init, ".", filters.isSpriteDir) catch unreachable;
     const sprite_filenames = entriesToFilenames(init, sprite_dirs);
     return sprite_filenames;
 }
 
-pub fn noFilter(init: std.process.Init, entry: Entry) bool {
-    _ = init;
-    _ = entry;
-    return true;
-}
+/// Useful filters meant to be passed to ls().
+pub const filters = struct {
+    /// Always evaluates to true. Used to list all files, unconditionally.
+    pub fn none(init: std.process.Init, entry: Entry) bool {
+        _ = init;
+        _ = entry;
+        return true;
+    }
 
-/// Takes a directory entry and returns whether or not it is a "sprite directory".
-/// A sprite directory is a directory that contains at least one PNG file.
-/// Determining whether or not the sprite can actually be loaded is beyond this
-/// function's responsibility.
-fn isSpriteDir(init: std.process.Init, entry: Entry) bool {
-    if (entry.kind != .directory) return false;
-    const sub_entries = ls(init, entry.basename, isPngFile) catch unreachable;
-    // A single "PNG file" is sufficient for the whole dir to qualify as sprite dir.
-    if (sub_entries.items.len == 0) return false else return true;
-}
+    /// Returns whether or not it is a "sprite directory".
+    /// A sprite directory is a directory that contains at least one PNG file.
+    /// Determining whether or not the sprite can actually be loaded is beyond this
+    /// function's responsibility.
+    fn isSpriteDir(init: std.process.Init, entry: Entry) bool {
+        if (entry.kind != .directory) return false;
+        const sub_entries = ls(init, entry.basename, isPngFile) catch unreachable;
+        // A single "PNG file" is sufficient for the whole dir to qualify as sprite dir.
+        if (sub_entries.items.len == 0) return false else return true;
+    }
 
-fn isPngFile(init: std.process.Init, entry: Entry) bool {
-    _ = init;
-    if (entry.kind != .file) return false;
-    const name = entry.basename;
-    const actual_suffix: []const u8 = string.getLastFourChars(name) catch return false;
-    const expected_suffix: []const u8 = ".png";
-    if (std.mem.eql(u8, expected_suffix, actual_suffix)) return true else return false;
-}
+    fn isPngFile(init: std.process.Init, entry: Entry) bool {
+        _ = init;
+        if (entry.kind != .file) return false;
+        const name = entry.basename;
+        const actual_suffix: []const u8 = string.getLastFourChars(name) catch return false;
+        const expected_suffix: []const u8 = ".png";
+        if (std.mem.eql(u8, expected_suffix, actual_suffix)) return true else return false;
+    }
+
+    /// It is assumed frame_name already ends in ".png".
+    pub fn isValidFrame(init: std.process.Init, entry: Entry) bool {
+        _ = init;
+        if (entry.kind != .file) return false;
+        const frame_name = entry.basename;
+        const no_suffix_name = string.removeSuffix(frame_name) catch return false;
+        _ = std.fmt.parseInt(u32, no_suffix_name, 10) catch return false;
+        return true;
+    }
+};

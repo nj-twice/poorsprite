@@ -1,25 +1,25 @@
-const root = @import("root");
-const file = root.file;
-const string = root.string;
+const file = @import("file.zig");
 const std = @import("std");
 const rl = @import("raylib");
+const viewer = @import("viewer.zig");
 
 pub const FrameList = std.ArrayList(rl.Texture2D);
 const Filename = file.Filename;
 const FilenameList = file.FilenameList;
 const Entry = file.Entry;
 
-/// Load the individual sprite frames to memory.
+/// Load actual sprite textures from sprite filenames.
 /// This function doesn't need to know the CWD because rl.LoadTexture() already
 /// operates relative to CWD.
-pub fn load(init: std.process.Init, data: *root.Data) void {
-    if (data.sprites.items.len == 0) return;
-
-    const select_idx: u32 = @intCast(data.select_idx);
-    const selected_sprite = data.sprites.items[select_idx];
-
+pub fn load(
+    init: std.process.Init,
+    viewer_data: *viewer.Data,
+    filenames: FilenameList,
+    select_idx: u32,
+) void {
+    if (filenames.items.len == 0) return;
+    const selected_sprite = filenames.items[select_idx];
     const frames_names = listFramesNames(init, selected_sprite);
-
     for (0..frames_names.items.len) |i| {
         // Fill with 0's (splat) and not undefined, else path.ptr gets padded with
         // gibberish that is not readable by rl.LoadTexture(), which expects a
@@ -32,25 +32,25 @@ pub fn load(init: std.process.Init, data: *root.Data) void {
         ) catch unreachable;
 
         const texture = rl.LoadTexture(path.ptr);
-        data.frames.append(init.arena.allocator(), texture) catch unreachable;
+        viewer_data.frames.append(init.arena.allocator(), texture) catch unreachable;
     }
-    data.current_frame = 0;
+    viewer_data.current_frame = 0;
 }
 
-pub fn unload(data: *root.Data) void {
-    if (data.frames.items.len == 0 or data.current_frame == null) return;
-    for (0..data.frames.items.len) |i| {
-        rl.UnloadTexture(data.frames.items[i]);
+pub fn unload(viewer_data: *viewer.Data) void {
+    if (viewer_data.frames.items.len == 0 or viewer_data.current_frame == null) return;
+    for (0..viewer_data.frames.items.len) |i| {
+        rl.UnloadTexture(viewer_data.frames.items[i]);
     }
-    data.current_frame = null;
-    data.frames.clearRetainingCapacity();
+    viewer_data.current_frame = null;
+    viewer_data.frames.clearRetainingCapacity();
 }
 
 /// From the selected sprite directory, extract then sort the names of all valid frames.
 /// Currently, a valid frame has the filename "{int}.png".
 /// Later, we might use more elaborate regex.
 fn listFramesNames(init: std.process.Init, sprite: Filename) FilenameList {
-    const frames = file.ls(init, sprite, isValidFrame) catch unreachable;
+    const frames = file.ls(init, sprite, file.filters.isValidFrame) catch unreachable;
     const frames_names = file.entriesToFilenames(init, frames);
     std.mem.sort(Filename, frames_names.items, {}, lessThan);
     return frames_names;
@@ -59,23 +59,4 @@ fn listFramesNames(init: std.process.Init, sprite: Filename) FilenameList {
 // NOTE: We can check that it is properly sorting by swapping a and b.
 fn lessThan(_: void, a: Filename, b: Filename) bool {
     return std.mem.lessThan(u8, a, b);
-}
-
-/// We assume frame_name ends in ".png".
-fn isValidFrame(init: std.process.Init, entry: Entry) bool {
-    _ = init;
-    if (entry.kind != .file) return false;
-    const frame_name = entry.basename;
-    const no_suffix_name = string.removeSuffix(frame_name) catch return false;
-    _ = std.fmt.parseInt(u32, no_suffix_name, 10) catch return false;
-    return true;
-}
-
-pub fn draw(data: *const root.Data) void {
-    if (data.current_frame == null) return;
-    const frame_idx = data.current_frame.?;
-
-    const pos = rl.Vector2{ .x = 10, .y = 10 };
-    const scale = 10;
-    rl.DrawTextureEx(data.frames.items[frame_idx], pos, 0, scale, rl.WHITE);
 }

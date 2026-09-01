@@ -1,0 +1,34 @@
+//! Animation viewer.
+//! Must not allocate memory.
+
+const file = @import("file.zig");
+const frame = @import("frame.zig");
+const rl = @import("raylib");
+
+pub const Data = struct {
+    frames: frame.FrameList = .empty,
+    current_frame: ?u32 = null,
+    timer: f32 = 0.0,
+};
+
+pub fn update(data: *Data) void {
+    if (data.frames.items.len == 0) return;
+    if (data.current_frame == null) return;
+
+    data.timer += rl.GetFrameTime();
+    if (data.timer > 0.5) {
+        data.timer = 0;
+        data.current_frame.? = if (data.current_frame.? + 1 >= data.frames.items.len)
+            0
+        else
+            data.current_frame.? + 1;
+    }
+}
+pub fn draw(data: *const Data) void {
+    if (data.current_frame == null) return;
+    const frame_idx = data.current_frame.?;
+
+    const pos = rl.Vector2{ .x = 10, .y = 10 };
+    const scale = 10;
+    rl.DrawTextureEx(data.frames.items[frame_idx], pos, 0, scale, rl.WHITE);
+}
