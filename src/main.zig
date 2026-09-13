@@ -3,10 +3,7 @@ const std = @import("std");
 const ui = @import("ui.zig");
 const viewer = @import("viewer.zig");
 const loader = @import("loader.zig");
-
-const SCREEN_WIDTH = 1200;
-const SCREEN_HEIGHT = 800;
-const NAME = "Poorsprite";
+const setup = @import("setup.zig");
 
 pub const Data = struct {
     ui: ui.Data = ui.Data{},
@@ -18,7 +15,7 @@ pub fn main(init: std.process.Init) !void {
     _ = std.debug.lockStderr(&.{});
     std.debug.unlockStderr();
 
-    rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, NAME);
+    rl.InitWindow(setup.SCREEN_WIDTH, setup.SCREEN_HEIGHT, setup.NAME);
     defer rl.CloseWindow();
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
