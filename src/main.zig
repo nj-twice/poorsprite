@@ -36,8 +36,8 @@ pub fn main(init: std.process.Init) !void {
 
 fn update(data: *Data, init: std.process.Init) void {
     loader.update(init, &data.ui, &data.viewer);
-    ui.update(&data.ui);
-    viewer.update(&data.viewer);
+    const button_action = ui.update(&data.ui);
+    viewer.update(&data.viewer, button_action);
 }
 
 fn draw(data: *const Data) void {

@@ -5,9 +5,11 @@ const file = @import("file.zig");
 const frame = @import("frame.zig");
 const rl = @import("raylib");
 const debug = @import("std").debug;
+const ui = @import("ui.zig");
 
 pub const Data = struct {
     frames: frame.FrameList = .empty,
+    pause: bool = false,
     current_frame: ?u32 = null,
     timer: f32 = 0.0,
     fps: u16 = 2, // MUST NOT BE ZERO
@@ -21,15 +23,16 @@ const Grab = struct {
     offset: rl.Vector2 = .{ .x = 0, .y = 0 },
 };
 
-pub fn update(data: *Data) void {
+pub fn update(data: *Data, button_action: ?ui.ButtonAction) void {
     debug.assert(data.fps != 0);
 
     if (data.frames.items.len == 0) return;
     if (data.current_frame == null) return;
 
+    handleButtons(data, button_action);
+    handleMouseAndKeyboard(data);
+
     updateFrame(data);
-    updatePosition(data);
-    updateZoom(data);
 }
 
 pub fn draw(data: *const Data) void {
@@ -41,6 +44,25 @@ pub fn draw(data: *const Data) void {
     rl.DrawTextureEx(data.frames.items[frame_idx], pos, 0, scale, rl.WHITE);
 
     drawHoverOutline(data);
+}
+
+fn handleButtons(data: *Data, maybe_action: ?ui.ButtonAction) void {
+    if (maybe_action == null) return;
+    const action = maybe_action.?;
+
+    switch (action) {
+        .TogglePause => data.pause = !data.pause,
+    }
+}
+
+fn handleMouseAndKeyboard(data: *Data) void {
+    updatePosition(data);
+    updateZoom(data);
+    togglePause(data);
+}
+
+fn togglePause(data: *Data) void {
+    if (rl.IsKeyPressed(rl.KEY_SPACE)) data.pause = !data.pause;
 }
 
 const LINE_THICKNESS = 7;
@@ -121,6 +143,7 @@ fn toggleGrab(data: *Data) void {
 }
 
 fn updateFrame(data: *Data) void {
+    if (data.pause) return;
     data.timer += rl.GetFrameTime();
     if (data.timer > 1.0 / @as(f32, @floatFromInt(data.fps))) {
         data.timer = 0;

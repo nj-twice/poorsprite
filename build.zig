@@ -29,6 +29,8 @@ pub fn build(b: *std.Build) void {
         .root_module = module,
     });
 
+    loadUiAssets(b, exe);
+
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -39,4 +41,19 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("run", "Run the program");
     run_step.dependOn(&run_cmd.step);
+}
+
+fn loadUiAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
+    exe.root_module.addAnonymousImport(
+        "ui_button",
+        .{ .root_source_file = b.path("assets/ui/icons/button.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_play",
+        .{ .root_source_file = b.path("assets/ui/icons/play.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_pause",
+        .{ .root_source_file = b.path("assets/ui/icons/pause.png") },
+    );
 }

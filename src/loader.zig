@@ -9,6 +9,7 @@ const std = @import("std");
 const ui = @import("ui.zig");
 const viewer = @import("viewer.zig");
 const setup = @import("setup.zig");
+const assets = @import("assets.zig");
 
 pub fn update(
     init: std.process.Init,
@@ -16,14 +17,35 @@ pub fn update(
     viewer_data: *viewer.Data,
 ) void {
     handleUi(init, ui_data);
+    loadUiElements(init, ui_data);
 
-    const filenames = ui_data.list;
+    const filenames = ui_data.filelist;
     const select_idx: u32 = @intCast(ui_data.select_idx);
     handleViewer(init, viewer_data, filenames, select_idx);
 }
 
+const TEST_BUTTON_POS: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 100 };
+
+/// Create UI elements (buttons, timeline, ...) and load them
+fn loadUiElements(
+    init: std.process.Init,
+    ui_data: *ui.Data,
+) void {
+    if (ui_data.elements.items.len != 0) return;
+
+    const button_image = rl.LoadImageFromMemory(".png", assets.button, assets.button.len);
+    const button_texture = rl.LoadTextureFromImage(button_image);
+    const button = ui.Element{
+        .position = TEST_BUTTON_POS,
+        .texture = button_texture,
+        .action = .TogglePause,
+    };
+
+    ui_data.elements.append(init.arena.allocator(), button) catch unreachable;
+}
+
 fn handleUi(init: std.process.Init, data: *ui.Data) void {
-    if (data.list.items.len == 0) data.list = file.lsSpriteDirs(init);
+    if (data.filelist.items.len == 0) data.filelist = file.lsSpriteDirs(init);
 }
 
 fn handleViewer(
