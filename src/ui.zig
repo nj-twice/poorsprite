@@ -5,7 +5,15 @@ const std = @import("std");
 const rl = @import("raylib");
 const loader = @import("loader.zig");
 const Filenamelist = @import("file.zig").FilenameList;
+const viewer = @import("viewer.zig");
 
+pub const ElementKind = enum {
+    ButtonPause,
+};
+
+/// There is an incentive to keep this type separate from ElementKind.
+/// Later, a single ElementKind might emit different actions depending on whether
+/// the user left- or right-clicked, for exemple.
 pub const ButtonAction = enum {
     TogglePause,
     // TODO: Add more!
@@ -15,10 +23,20 @@ pub const Element = struct {
     const SCALE: f32 = 3.0;
     const IMAGE_SIZE = 24; // Hardcoded for now. Must be consistent with assets' images.
 
-    texture: rl.Texture2D,
+    textures: std.ArrayList(rl.Texture2D) = .empty,
+    kind: ElementKind,
     position: rl.Vector2,
-    action: ?ButtonAction = null, // Null means not interactable (decorative)
+    visible: bool = true,
+
+    /// Simply creates the base. The allocated fields are handled by the loader.
+    pub fn createBase(kind: ElementKind, init_position: rl.Vector2) Element {
+        return Element{
+            .kind = kind,
+            .position = init_position,
+        };
+    }
 };
+
 pub const ElementList = std.ArrayList(Element);
 
 pub const Data = struct {
@@ -31,15 +49,28 @@ pub const Data = struct {
 
 pub fn update(data: *Data) ?ButtonAction {
     updateMenu(data);
-    const button_action = updateButtons(data);
+    const button_action = handleButtons(data);
     return button_action;
 }
 
-fn updateButtons(data: *Data) ?ButtonAction {
+pub fn draw(
+    ui_data: *const Data,
+    viewer_data: *const viewer.Data,
+) void {
+    drawFromUiData(ui_data);
+    drawButtons(ui_data, viewer_data);
+}
+
+/// Handle buttons interaction
+fn handleButtons(data: *Data) ?ButtonAction {
     for (0..data.elements.items.len) |idx| {
         const element = data.elements.items[idx];
+
         if (isMouseOnElement(element) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)) {
-            return data.elements.items[idx].action;
+            const action = switch (element.kind) {
+                .ButtonPause => .TogglePause,
+            };
+            return action;
         }
     }
     return null;
@@ -69,17 +100,27 @@ fn updateMenu(data: *Data) void {
     }
 }
 
-pub fn draw(data: *const Data) void {
+fn drawFromUiData(data: *const Data) void {
     if (data.show_menu) {
         drawSelectionList(data);
         drawLoadedList();
     }
-    drawButtons(data);
 }
 
-fn drawButtons(data: *const Data) void {
-    for (0..data.elements.items.len) |idx| {
-        const button = data.elements.items[idx];
+fn drawButtons(
+    ui_data: *const Data,
+    viewer_data: *const viewer.Data,
+) void {
+    std.log.debug("Element count: {}", .{ui_data.elements.items.len});
+
+    for (0..ui_data.elements.items.len) |idx| {
+        const button = &ui_data.elements.items[idx];
+        if (!button.visible) continue;
+
+        std.log.debug("Button idx: {}", .{idx});
+        std.log.debug("Button kind: {}", .{button.kind});
+        std.log.debug("Button texture len: {}", .{button.textures.items.len});
+
         const mouse_pos = rl.GetMousePosition();
         const frame = rl.Rectangle{
             .x = button.position.x,
@@ -87,11 +128,50 @@ fn drawButtons(data: *const Data) void {
             .height = Element.SCALE * Element.IMAGE_SIZE,
             .width = Element.SCALE * Element.IMAGE_SIZE,
         };
-        if (rl.CheckCollisionPointRec(mouse_pos, frame))
-            rl.DrawTextureEx(button.texture, button.position, 0, Element.SCALE, rl.GREEN)
-        else
-            rl.DrawTextureEx(button.texture, button.position, 0, Element.SCALE, rl.WHITE);
+
+        switch (button.kind) {
+            .ButtonPause => drawPauseButton(
+                button,
+                viewer_data.pause,
+                frame,
+                mouse_pos,
+            ),
+            // _ => drawGenericButton(button, frame, mouse_pos),
+        }
     }
+}
+
+fn drawPauseButton(
+    button: *Element,
+    pause_state: bool,
+    frame: rl.Rectangle,
+    mouse_pos: rl.Vector2,
+) void {
+    const textures = &button.textures.items;
+    std.debug.assert(textures.len == 3);
+
+    if (rl.CheckCollisionPointRec(mouse_pos, frame))
+        rl.DrawTextureEx(textures.*[0], button.position, 0, Element.SCALE, rl.GREEN)
+    else
+        rl.DrawTextureEx(textures.*[0], button.position, 0, Element.SCALE, rl.WHITE);
+
+    if (pause_state)
+        rl.DrawTextureEx(textures.*[1], button.position, 0, Element.SCALE, rl.WHITE)
+    else
+        rl.DrawTextureEx(textures.*[2], button.position, 0, Element.SCALE, rl.WHITE);
+}
+
+/// A "generic button" has 2 textures at most: the base button and the icon.
+fn drawGenericButton(
+    button: Element,
+    frame: rl.Rectangle,
+    mouse_pos: rl.Vector2,
+) void {
+    std.debug.assert(button.textures.items.len == 2);
+    if (rl.CheckCollisionPointRec(mouse_pos, frame) and button.action != null)
+        rl.DrawTextureEx(button.textures, button.position, 0, Element.SCALE, rl.GREEN)
+    else
+        rl.DrawTextureEx(button.textures, button.position, 0, Element.SCALE, rl.WHITE);
 }
 
 fn drawSelectionList(data: *const Data) void {

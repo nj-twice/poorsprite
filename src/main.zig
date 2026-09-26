@@ -42,5 +42,5 @@ fn update(data: *Data, init: std.process.Init) void {
 
 fn draw(data: *const Data) void {
     viewer.draw(&data.viewer);
-    ui.draw(&data.ui);
+    ui.draw(&data.ui, &data.viewer);
 }

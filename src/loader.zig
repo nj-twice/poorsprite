@@ -24,24 +24,54 @@ pub fn update(
     handleViewer(init, viewer_data, filenames, select_idx);
 }
 
-const TEST_BUTTON_POS: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 100 };
+const TEST_ELEMENT_POS: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 100 };
 
 /// Create UI elements (buttons, timeline, ...) and load them
 fn loadUiElements(
     init: std.process.Init,
     ui_data: *ui.Data,
 ) void {
-    if (ui_data.elements.items.len != 0) return;
+    // IMPORTANT: Take POINTERS to Element's or ArrayList's,
+    // else we're just copying an empty struct.
 
-    const button_image = rl.LoadImageFromMemory(".png", assets.button, assets.button.len);
-    const button_texture = rl.LoadTextureFromImage(button_image);
-    const button = ui.Element{
-        .position = TEST_BUTTON_POS,
-        .texture = button_texture,
-        .action = .TogglePause,
-    };
+    const alloc = init.arena.allocator();
+    const load = loadTextureFromAsset;
+    const ui_elements = &ui_data.elements.items;
 
-    ui_data.elements.append(init.arena.allocator(), button) catch unreachable;
+    if (ui_elements.len != 0) return;
+
+    // Create the elements bases and add them to the list
+    const pause_button = ui.Element.createBase(.ButtonPause, TEST_ELEMENT_POS);
+    ui_data.elements.append(alloc, pause_button) catch unreachable;
+
+    // Load their assets
+    for (0..ui_elements.len) |i| {
+        var element = &ui_elements.*[i];
+        if (element.textures.items.len != 0) continue;
+
+        switch (element.kind) {
+            .ButtonPause => {
+                // WARNING: The order matters here; we rely on it when drawing.
+                element.textures.append(alloc, load(assets.button)) catch unreachable;
+                element.textures.append(alloc, load(assets.play)) catch unreachable;
+                element.textures.append(alloc, load(assets.pause)) catch unreachable;
+            },
+        }
+
+        const len = element.textures.items.len;
+        std.log.debug("Element no.{d} textures len: {d}", .{ i, len });
+    }
+}
+
+fn loadTextureFromAsset(
+    asset: []const u8, // Note: Works because a slice is a pointer + a length.
+) rl.Texture2D {
+    const image = rl.LoadImageFromMemory(
+        ".png",
+        @ptrCast(asset),
+        @intCast(asset.len),
+    );
+    return rl.LoadTextureFromImage(image);
 }
 
 fn handleUi(init: std.process.Init, data: *ui.Data) void {
