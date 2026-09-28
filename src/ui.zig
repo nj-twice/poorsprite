@@ -9,6 +9,8 @@ const viewer = @import("viewer.zig");
 
 pub const ElementKind = enum {
     ButtonPause,
+    ButtonZoomIn,
+    ButtonZoomOut,
 };
 
 /// There is an incentive to keep this type separate from ElementKind.
@@ -16,7 +18,8 @@ pub const ElementKind = enum {
 /// the user left- or right-clicked, for exemple.
 pub const ButtonAction = enum {
     TogglePause,
-    // TODO: Add more!
+    ZoomIn,
+    ZoomOut,
 };
 
 pub const Element = struct {
@@ -65,15 +68,20 @@ pub fn draw(
 fn handleButtons(data: *Data) ?ButtonAction {
     for (0..data.elements.items.len) |idx| {
         const element = data.elements.items[idx];
-
+        const action = getElementAction(element.kind);
         if (isMouseOnElement(element) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)) {
-            const action = switch (element.kind) {
-                .ButtonPause => .TogglePause,
-            };
             return action;
         }
     }
     return null;
+}
+
+fn getElementAction(kind: ElementKind) ButtonAction {
+    return switch (kind) {
+        .ButtonPause => .TogglePause,
+        .ButtonZoomIn => .ZoomIn,
+        .ButtonZoomOut => .ZoomOut,
+    };
 }
 
 fn isMouseOnElement(element: Element) bool {
@@ -136,7 +144,8 @@ fn drawButtons(
                 frame,
                 mouse_pos,
             ),
-            // _ => drawGenericButton(button, frame, mouse_pos),
+            .ButtonZoomIn => drawGenericButton(button, frame, mouse_pos),
+            .ButtonZoomOut => drawGenericButton(button, frame, mouse_pos),
         }
     }
 }
@@ -163,15 +172,20 @@ fn drawPauseButton(
 
 /// A "generic button" has 2 textures at most: the base button and the icon.
 fn drawGenericButton(
-    button: Element,
+    button: *Element,
     frame: rl.Rectangle,
     mouse_pos: rl.Vector2,
 ) void {
-    std.debug.assert(button.textures.items.len == 2);
-    if (rl.CheckCollisionPointRec(mouse_pos, frame) and button.action != null)
-        rl.DrawTextureEx(button.textures, button.position, 0, Element.SCALE, rl.GREEN)
-    else
-        rl.DrawTextureEx(button.textures, button.position, 0, Element.SCALE, rl.WHITE);
+    const textures = &button.textures.items;
+    std.debug.assert(textures.len == 2);
+
+    if (rl.CheckCollisionPointRec(mouse_pos, frame)) {
+        rl.DrawTextureEx(textures.*[0], button.position, 0, Element.SCALE, rl.GREEN);
+        rl.DrawTextureEx(textures.*[1], button.position, 0, Element.SCALE, rl.WHITE);
+    } else {
+        rl.DrawTextureEx(textures.*[0], button.position, 0, Element.SCALE, rl.WHITE);
+        rl.DrawTextureEx(textures.*[1], button.position, 0, Element.SCALE, rl.WHITE);
+    }
 }
 
 fn drawSelectionList(data: *const Data) void {

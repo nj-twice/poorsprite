@@ -25,6 +25,8 @@ pub fn update(
 }
 
 const TEST_ELEMENT_POS: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 100 };
+const TEST_ELEMENT_POS_2: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 200 };
+const TEST_ELEMENT_POS_3: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 300 };
 
 /// Create UI elements (buttons, timeline, ...) and load them
 fn loadUiElements(
@@ -43,6 +45,10 @@ fn loadUiElements(
     // Create the elements bases and add them to the list
     const pause_button = ui.Element.createBase(.ButtonPause, TEST_ELEMENT_POS);
     ui_data.elements.append(alloc, pause_button) catch unreachable;
+    const zoom_in_button = ui.Element.createBase(.ButtonZoomIn, TEST_ELEMENT_POS_2);
+    ui_data.elements.append(alloc, zoom_in_button) catch unreachable;
+    const zoom_out_button = ui.Element.createBase(.ButtonZoomOut, TEST_ELEMENT_POS_3);
+    ui_data.elements.append(alloc, zoom_out_button) catch unreachable;
 
     // Load their assets
     for (0..ui_elements.len) |i| {
@@ -50,11 +56,20 @@ fn loadUiElements(
         if (element.textures.items.len != 0) continue;
 
         switch (element.kind) {
+            // WARNING: The order matters here; we rely on it when drawing.
+            // Convention: The first element is the base button.
             .ButtonPause => {
-                // WARNING: The order matters here; we rely on it when drawing.
                 element.textures.append(alloc, load(assets.button)) catch unreachable;
                 element.textures.append(alloc, load(assets.play)) catch unreachable;
                 element.textures.append(alloc, load(assets.pause)) catch unreachable;
+            },
+            .ButtonZoomIn => {
+                element.textures.append(alloc, load(assets.button)) catch unreachable;
+                element.textures.append(alloc, load(assets.zoom_plus)) catch unreachable;
+            },
+            .ButtonZoomOut => {
+                element.textures.append(alloc, load(assets.button)) catch unreachable;
+                element.textures.append(alloc, load(assets.zoom_minus)) catch unreachable;
             },
         }
 

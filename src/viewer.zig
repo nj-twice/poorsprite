@@ -52,6 +52,8 @@ fn handleButtons(data: *Data, maybe_action: ?ui.ButtonAction) void {
 
     switch (action) {
         .TogglePause => data.pause = !data.pause,
+        .ZoomIn => data.zoom_factor += ZOOM_INCREMENT,
+        .ZoomOut => data.zoom_factor -= ZOOM_INCREMENT,
     }
 }
 

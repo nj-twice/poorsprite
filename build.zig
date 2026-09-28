@@ -56,4 +56,12 @@ fn loadUiAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
         "ui_pause",
         .{ .root_source_file = b.path("assets/ui/icons/pause.png") },
     );
+    exe.root_module.addAnonymousImport(
+        "ui_zoom_plus",
+        .{ .root_source_file = b.path("assets/ui/icons/zoom_plus.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_zoom_minus",
+        .{ .root_source_file = b.path("assets/ui/icons/zoom_minus.png") },
+    );
 }
