@@ -24,9 +24,12 @@ pub fn update(
     handleViewer(init, viewer_data, filenames, select_idx);
 }
 
-const TEST_ELEMENT_POS: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 100 };
-const TEST_ELEMENT_POS_2: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 200 };
-const TEST_ELEMENT_POS_3: rl.Vector2 = .{ .x = 20, .y = setup.SCREEN_HEIGHT - 300 };
+fn getButtonPos(idx: i32) rl.Vector2 {
+    return rl.Vector2{
+        .x = ui.Config.ELEMENT_MARGIN,
+        .y = @floatFromInt(setup.SCREEN_HEIGHT - ui.Config.StatusBar.HEIGHT - (ui.Config.BUTTON_SPACING + ui.Config.ELEMENT_SCALED_SIZE) * (idx)),
+    };
+}
 
 /// Create UI elements (buttons, timeline, ...) and load them
 fn loadUiElements(
@@ -43,11 +46,11 @@ fn loadUiElements(
     if (ui_elements.len != 0) return;
 
     // Create the elements bases and add them to the list
-    const pause_button = ui.Element.createBase(.ButtonPause, TEST_ELEMENT_POS);
+    const pause_button = ui.Element.createBase(.ButtonPause, getButtonPos(1));
     ui_data.elements.append(alloc, pause_button) catch unreachable;
-    const zoom_in_button = ui.Element.createBase(.ButtonZoomIn, TEST_ELEMENT_POS_2);
+    const zoom_in_button = ui.Element.createBase(.ButtonZoomIn, getButtonPos(2));
     ui_data.elements.append(alloc, zoom_in_button) catch unreachable;
-    const zoom_out_button = ui.Element.createBase(.ButtonZoomOut, TEST_ELEMENT_POS_3);
+    const zoom_out_button = ui.Element.createBase(.ButtonZoomOut, getButtonPos(3));
     ui_data.elements.append(alloc, zoom_out_button) catch unreachable;
 
     // Load their assets

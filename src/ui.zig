@@ -6,6 +6,19 @@ const rl = @import("raylib");
 const loader = @import("loader.zig");
 const Filenamelist = @import("file.zig").FilenameList;
 const viewer = @import("viewer.zig");
+const setup = @import("setup.zig");
+
+pub const Config = struct {
+    pub const StatusBar = struct {
+        pub const HEIGHT = 50;
+        pub const SPACING = 10;
+        pub const MARGIN = 10;
+    };
+    pub const ELEMENT_MARGIN = 40;
+    pub const ELEMENT_SIZE = Element.IMAGE_SIZE;
+    pub const ELEMENT_SCALED_SIZE: i32 = @trunc(ELEMENT_SIZE * Element.SCALE);
+    pub const BUTTON_SPACING = 10;
+};
 
 pub const ElementKind = enum {
     ButtonPause,
@@ -62,6 +75,30 @@ pub fn draw(
 ) void {
     drawFromUiData(ui_data);
     drawButtons(ui_data, viewer_data);
+    drawStatusBar(viewer_data);
+}
+
+const SmallBuf = [16]u8;
+
+fn drawStatusBar(data: *const viewer.Data) void {
+    rl.DrawRectangle(0, setup.SCREEN_HEIGHT - Config.StatusBar.HEIGHT, setup.SCREEN_WIDTH, Config.StatusBar.HEIGHT, rl.ColorAlpha(rl.GREEN, 0.2));
+
+    const current_frame = if (data.current_frame) |frame| frame else 0;
+
+    var frame_count_buf: SmallBuf = @splat(0);
+    const frame_count = std.fmt.bufPrint(frame_count_buf[0..], "{d}/{d}", .{ current_frame, data.frames.items.len }) catch unreachable;
+    var fps_buf: SmallBuf = @splat(0);
+    const fps = std.fmt.bufPrint(fps_buf[0..], "{d}", .{data.fps}) catch unreachable;
+    var zoom_factor_buf: SmallBuf = @splat(0);
+    const zoom_factor = std.fmt.bufPrint(zoom_factor_buf[0..], "{d:3.1}", .{data.zoom_factor}) catch unreachable;
+
+    drawStatusBarText(frame_count, 0);
+    drawStatusBarText(fps, 1);
+    drawStatusBarText(zoom_factor, 2);
+}
+
+fn drawStatusBarText(content: []const u8, idx: i32) void {
+    rl.DrawText(content.ptr, 10 + ((idx + 1) * 250), setup.SCREEN_HEIGHT - 45, 45, rl.WHITE);
 }
 
 /// Handle buttons interaction
