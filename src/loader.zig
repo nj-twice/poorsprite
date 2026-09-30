@@ -52,6 +52,10 @@ fn loadUiElements(
     ui_data.elements.append(alloc, zoom_in_button) catch unreachable;
     const zoom_out_button = ui.Element.createBase(.ButtonZoomOut, getButtonPos(3));
     ui_data.elements.append(alloc, zoom_out_button) catch unreachable;
+    const faster_button = ui.Element.createBase(.ButtonFaster, getButtonPos(4));
+    ui_data.elements.append(alloc, faster_button) catch unreachable;
+    const slower_button = ui.Element.createBase(.ButtonSlower, getButtonPos(5));
+    ui_data.elements.append(alloc, slower_button) catch unreachable;
 
     // Load their assets
     for (0..ui_elements.len) |i| {
@@ -73,6 +77,14 @@ fn loadUiElements(
             .ButtonZoomOut => {
                 element.textures.append(alloc, load(assets.button)) catch unreachable;
                 element.textures.append(alloc, load(assets.zoom_minus)) catch unreachable;
+            },
+            .ButtonFaster => {
+                element.textures.append(alloc, load(assets.button)) catch unreachable;
+                element.textures.append(alloc, load(assets.faster)) catch unreachable;
+            },
+            .ButtonSlower => {
+                element.textures.append(alloc, load(assets.button)) catch unreachable;
+                element.textures.append(alloc, load(assets.slower)) catch unreachable;
             },
         }
 

@@ -24,6 +24,8 @@ pub const ElementKind = enum {
     ButtonPause,
     ButtonZoomIn,
     ButtonZoomOut,
+    ButtonFaster,
+    ButtonSlower,
 };
 
 /// There is an incentive to keep this type separate from ElementKind.
@@ -33,6 +35,8 @@ pub const ButtonAction = enum {
     TogglePause,
     ZoomIn,
     ZoomOut,
+    Faster,
+    Slower,
 };
 
 pub const Element = struct {
@@ -118,6 +122,8 @@ fn getElementAction(kind: ElementKind) ButtonAction {
         .ButtonPause => .TogglePause,
         .ButtonZoomIn => .ZoomIn,
         .ButtonZoomOut => .ZoomOut,
+        .ButtonFaster => .Faster,
+        .ButtonSlower => .Slower,
     };
 }
 
@@ -183,6 +189,8 @@ fn drawButtons(
             ),
             .ButtonZoomIn => drawGenericButton(button, frame, mouse_pos),
             .ButtonZoomOut => drawGenericButton(button, frame, mouse_pos),
+            .ButtonFaster => drawGenericButton(button, frame, mouse_pos),
+            .ButtonSlower => drawGenericButton(button, frame, mouse_pos),
         }
     }
 }

@@ -54,13 +54,27 @@ fn handleButtons(data: *Data, maybe_action: ?ui.ButtonAction) void {
         .TogglePause => data.pause = !data.pause,
         .ZoomIn => data.zoom_factor += ZOOM_INCREMENT,
         .ZoomOut => data.zoom_factor -= ZOOM_INCREMENT,
+        .Faster => data.fps += 1,
+        .Slower => {
+            if (data.fps - 1 > 0) data.fps -= 1;
+        },
     }
 }
 
 fn handleMouseAndKeyboard(data: *Data) void {
     updatePosition(data);
     updateZoom(data);
+    updateSpeed(data);
     togglePause(data);
+}
+
+fn updateSpeed(data: *Data) void {
+    if (rl.IsKeyPressed(rl.KEY_D)) {
+        data.fps += 1;
+    }
+    if (rl.IsKeyPressed(rl.KEY_A)) {
+        if (data.fps - 1 > 0) data.fps -= 1;
+    }
 }
 
 fn togglePause(data: *Data) void {
