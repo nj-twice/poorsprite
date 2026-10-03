@@ -72,4 +72,20 @@ fn loadUiAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
         "ui_slower",
         .{ .root_source_file = b.path("assets/ui/icons/slower.png") },
     );
+    exe.root_module.addAnonymousImport(
+        "ui_timeline_left",
+        .{ .root_source_file = b.path("assets/ui/timeline/edge_left.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_timeline_right",
+        .{ .root_source_file = b.path("assets/ui/timeline/edge_right.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_timeline_mid",
+        .{ .root_source_file = b.path("assets/ui/timeline/mid.png") },
+    );
+    exe.root_module.addAnonymousImport(
+        "ui_timeline_cursor",
+        .{ .root_source_file = b.path("assets/ui/timeline/cursor.png") },
+    );
 }

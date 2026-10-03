@@ -5,3 +5,7 @@ pub const zoom_plus = @embedFile("ui_zoom_plus");
 pub const zoom_minus = @embedFile("ui_zoom_minus");
 pub const faster = @embedFile("ui_faster");
 pub const slower = @embedFile("ui_slower");
+pub const timeline_left = @embedFile("ui_timeline_left");
+pub const timeline_right = @embedFile("ui_timeline_right");
+pub const timeline_mid = @embedFile("ui_timeline_mid");
+pub const timeline_cursor = @embedFile("ui_timeline_cursor");

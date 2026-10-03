@@ -24,6 +24,27 @@ pub fn update(
     handleViewer(init, viewer_data, filenames, select_idx);
 }
 
+/// 1 = left, 2 = middle, 3 = right, 4 = cursor = left, by default (start pos)
+fn getTimelinePos(idx: i32) rl.Vector2 {
+    const ANCHOR_POS = ui.Config.TIMELINE_ANCHOR_POS;
+
+    return switch (idx) {
+        1 => ANCHOR_POS,
+        2 => rl.Vector2{
+            .x = ANCHOR_POS.x +
+                @as(f32, @floatFromInt(ui.Config.ELEMENT_SCALED_SIZE)),
+
+            .y = ANCHOR_POS.y,
+        },
+        3 => rl.Vector2{
+            .x = ANCHOR_POS.x + ui.Config.ELEMENT_SCALED_SIZE + (ui.Config.ELEMENT_SCALED_SIZE * ui.Config.TIMELINE_MID_SEGMENT_COUNT),
+            .y = ANCHOR_POS.y,
+        },
+        4 => ANCHOR_POS,
+        else => unreachable,
+    };
+}
+
 fn getButtonPos(idx: i32) rl.Vector2 {
     return rl.Vector2{
         .x = ui.Config.ELEMENT_MARGIN,
@@ -57,6 +78,15 @@ fn loadUiElements(
     const slower_button = ui.Element.createBase(.ButtonSlower, getButtonPos(5));
     ui_data.elements.append(alloc, slower_button) catch unreachable;
 
+    const timeline_left = ui.Element.createBase(.TimelineLeft, getTimelinePos(1));
+    ui_data.elements.append(alloc, timeline_left) catch unreachable;
+    const timeline_mid = ui.Element.createBase(.TimelineMid, getTimelinePos(2));
+    ui_data.elements.append(alloc, timeline_mid) catch unreachable;
+    const timeline_right = ui.Element.createBase(.TimelineRight, getTimelinePos(3));
+    ui_data.elements.append(alloc, timeline_right) catch unreachable;
+    const timeline_cursor = ui.Element.createBase(.TimelineCursor, getTimelinePos(4));
+    ui_data.elements.append(alloc, timeline_cursor) catch unreachable;
+
     // Load their assets
     for (0..ui_elements.len) |i| {
         var element = &ui_elements.*[i];
@@ -86,10 +116,22 @@ fn loadUiElements(
                 element.textures.append(alloc, load(assets.button)) catch unreachable;
                 element.textures.append(alloc, load(assets.slower)) catch unreachable;
             },
+            .TimelineLeft => {
+                element.textures.append(alloc, load(assets.timeline_left)) catch unreachable;
+            },
+            .TimelineRight => {
+                element.textures.append(alloc, load(assets.timeline_right)) catch unreachable;
+            },
+            .TimelineMid => {
+                element.textures.append(alloc, load(assets.timeline_mid)) catch unreachable;
+            },
+            .TimelineCursor => {
+                element.textures.append(alloc, load(assets.timeline_cursor)) catch unreachable;
+            },
         }
 
-        const len = element.textures.items.len;
-        std.log.debug("Element no.{d} textures len: {d}", .{ i, len });
+        // const len = element.textures.items.len;
+        // std.log.debug("Element no.{d} textures len: {d}", .{ i, len });
     }
 }
 

@@ -8,6 +8,13 @@ const Filenamelist = @import("file.zig").FilenameList;
 const viewer = @import("viewer.zig");
 const setup = @import("setup.zig");
 
+pub fn getTimelineTotalLength() i32 {
+    const ELEMENT_SIZE = Config.ELEMENT_SCALED_SIZE;
+    const SEGMENTS_COUNT = Config.TIMELINE_MID_SEGMENT_COUNT;
+
+    return ELEMENT_SIZE * (SEGMENTS_COUNT + 2); // +2 for left and right edges
+}
+
 pub const Config = struct {
     pub const StatusBar = struct {
         pub const HEIGHT = 50;
@@ -18,6 +25,13 @@ pub const Config = struct {
     pub const ELEMENT_SIZE = Element.IMAGE_SIZE;
     pub const ELEMENT_SCALED_SIZE: i32 = @trunc(ELEMENT_SIZE * Element.SCALE);
     pub const BUTTON_SPACING = 10;
+    pub const TIMELINE_MID_SEGMENT_COUNT = 11;
+    pub const TIMELINE_ANCHOR_POS = rl.Vector2{
+        .x = @floatFromInt(ELEMENT_MARGIN + ELEMENT_SCALED_SIZE + 70),
+        .y = @floatFromInt(
+            setup.SCREEN_HEIGHT - StatusBar.HEIGHT - 40 - ELEMENT_SCALED_SIZE,
+        ),
+    };
 };
 
 pub const ElementKind = enum {
@@ -26,6 +40,10 @@ pub const ElementKind = enum {
     ButtonZoomOut,
     ButtonFaster,
     ButtonSlower,
+    TimelineLeft,
+    TimelineRight,
+    TimelineMid,
+    TimelineCursor,
 };
 
 /// There is an incentive to keep this type separate from ElementKind.
@@ -37,6 +55,8 @@ pub const ButtonAction = enum {
     ZoomOut,
     Faster,
     Slower,
+    Seek,
+    None,
 };
 
 pub const Element = struct {
@@ -78,7 +98,7 @@ pub fn draw(
     viewer_data: *const viewer.Data,
 ) void {
     drawFromUiData(ui_data);
-    drawButtons(ui_data, viewer_data);
+    drawInteractable(ui_data, viewer_data);
     drawStatusBar(viewer_data);
 }
 
@@ -87,10 +107,12 @@ const SmallBuf = [16]u8;
 fn drawStatusBar(data: *const viewer.Data) void {
     rl.DrawRectangle(0, setup.SCREEN_HEIGHT - Config.StatusBar.HEIGHT, setup.SCREEN_WIDTH, Config.StatusBar.HEIGHT, rl.ColorAlpha(rl.GREEN, 0.2));
 
-    const current_frame = if (data.current_frame) |frame| frame else 0;
-
     var frame_count_buf: SmallBuf = @splat(0);
-    const frame_count = std.fmt.bufPrint(frame_count_buf[0..], "{d}/{d}", .{ current_frame, data.frames.items.len }) catch unreachable;
+    const frame_count = if (data.current_frame) |frame|
+        std.fmt.bufPrint(frame_count_buf[0..], "{d}/{d}", .{ frame + 1, data.frames.items.len }) catch unreachable
+    else
+        std.fmt.bufPrint(frame_count_buf[0..], "NONE", .{}) catch unreachable;
+
     var fps_buf: SmallBuf = @splat(0);
     const fps = std.fmt.bufPrint(fps_buf[0..], "{d}", .{data.fps}) catch unreachable;
     var zoom_factor_buf: SmallBuf = @splat(0);
@@ -124,17 +146,33 @@ fn getElementAction(kind: ElementKind) ButtonAction {
         .ButtonZoomOut => .ZoomOut,
         .ButtonFaster => .Faster,
         .ButtonSlower => .Slower,
+        .TimelineCursor => .None,
+        .TimelineLeft => .Seek,
+        .TimelineMid => .Seek,
+        .TimelineRight => .Seek,
     };
 }
 
+/// Works differently for timeline mid segment
 fn isMouseOnElement(element: Element) bool {
     const mouse_pos = rl.GetMousePosition();
-    const rect = rl.Rectangle{
-        .x = element.position.x,
-        .y = element.position.y,
-        .height = Element.SCALE * Element.IMAGE_SIZE,
-        .width = Element.SCALE * Element.IMAGE_SIZE,
-    };
+
+    const rect = if (element.kind != .TimelineMid)
+        rl.Rectangle{
+            .x = element.position.x,
+            .y = element.position.y,
+            .height = Element.SCALE * Element.IMAGE_SIZE,
+            .width = Element.SCALE * Element.IMAGE_SIZE,
+        }
+    else
+        // Extended rectangle for the whole timeline mid section
+        rl.Rectangle{
+            .x = element.position.x,
+            .y = element.position.y,
+            .height = Element.SCALE * Element.IMAGE_SIZE,
+            .width = Element.SCALE * Element.IMAGE_SIZE * Config.TIMELINE_MID_SEGMENT_COUNT,
+        };
+
     return rl.CheckCollisionPointRec(mouse_pos, rect);
 }
 
@@ -158,40 +196,105 @@ fn drawFromUiData(data: *const Data) void {
     }
 }
 
-fn drawButtons(
+fn drawInteractable(
     ui_data: *const Data,
     viewer_data: *const viewer.Data,
 ) void {
-    std.log.debug("Element count: {}", .{ui_data.elements.items.len});
+    // std.log.debug("Element count: {}", .{ui_data.elements.items.len});
 
     for (0..ui_data.elements.items.len) |idx| {
-        const button = &ui_data.elements.items[idx];
-        if (!button.visible) continue;
+        const element = &ui_data.elements.items[idx];
+        if (!element.visible) continue;
 
-        std.log.debug("Button idx: {}", .{idx});
-        std.log.debug("Button kind: {}", .{button.kind});
-        std.log.debug("Button texture len: {}", .{button.textures.items.len});
+        // std.log.debug("Element idx: {}", .{idx});
+        // std.log.debug("Element kind: {}", .{element.kind});
+        // std.log.debug("Element texture len: {}", .{element.textures.items.len});
 
         const mouse_pos = rl.GetMousePosition();
         const frame = rl.Rectangle{
-            .x = button.position.x,
-            .y = button.position.y,
+            .x = element.position.x,
+            .y = element.position.y,
             .height = Element.SCALE * Element.IMAGE_SIZE,
             .width = Element.SCALE * Element.IMAGE_SIZE,
         };
 
-        switch (button.kind) {
+        switch (element.kind) {
             .ButtonPause => drawPauseButton(
-                button,
+                element,
                 viewer_data.pause,
                 frame,
                 mouse_pos,
             ),
-            .ButtonZoomIn => drawGenericButton(button, frame, mouse_pos),
-            .ButtonZoomOut => drawGenericButton(button, frame, mouse_pos),
-            .ButtonFaster => drawGenericButton(button, frame, mouse_pos),
-            .ButtonSlower => drawGenericButton(button, frame, mouse_pos),
+            .ButtonZoomIn => drawGenericButton(element, frame, mouse_pos),
+            .ButtonZoomOut => drawGenericButton(element, frame, mouse_pos),
+            .ButtonFaster => drawGenericButton(element, frame, mouse_pos),
+            .ButtonSlower => drawGenericButton(element, frame, mouse_pos),
+            .TimelineRight => drawTimeline(element, frame, mouse_pos),
+            .TimelineLeft => drawTimeline(element, frame, mouse_pos),
+            .TimelineMid => drawTimeline(element, frame, mouse_pos),
+            .TimelineCursor => drawTimelineCursor(
+                element,
+                viewer_data.current_frame,
+                @intCast(viewer_data.frames.items.len),
+            ),
         }
+    }
+}
+
+fn drawTimelineCursor(cursor: *Element, current_frame: ?u32, total_frames: u32) void {
+    const textures = &cursor.textures.items;
+    std.debug.assert(textures.len == 1);
+
+    const displacement: f32 = if (current_frame) |frame| blk: {
+        const ratio: f32 = @as(f32, @floatFromInt(frame)) / @as(
+            f32,
+            @floatFromInt(total_frames),
+        );
+        break :blk @as(f32, @floatFromInt(getTimelineTotalLength())) * ratio;
+    } else 0.0;
+
+    const position = rl.Vector2{
+        .x = cursor.position.x + displacement - 20, // The cursor goes beyond the timeline. Until I look into this, let's just translate it by some hardcoded value.
+        .y = cursor.position.y,
+    };
+
+    rl.DrawTextureEx(textures.*[0], position, 0, Element.SCALE, rl.GREEN);
+}
+
+fn drawTimeline(
+    element: *Element,
+    frame: rl.Rectangle,
+    mouse_pos: rl.Vector2,
+) void {
+    const textures = &element.textures.items;
+    std.debug.assert(textures.len == 1);
+
+    switch (element.kind) {
+        .TimelineMid => {
+            for (0..Config.TIMELINE_MID_SEGMENT_COUNT) |i| {
+                const pos = rl.Vector2{
+                    .x = element.position.x + @as(f32, @floatFromInt(i * Config.ELEMENT_SCALED_SIZE)),
+                    .y = element.position.y,
+                };
+                const displaced_frame = rl.Rectangle{
+                    .x = frame.x + @as(f32, @floatFromInt(i * Config.ELEMENT_SCALED_SIZE)),
+                    .y = frame.y,
+                    .width = frame.width,
+                    .height = frame.height,
+                };
+                if (rl.CheckCollisionPointRec(mouse_pos, displaced_frame))
+                    rl.DrawTextureEx(textures.*[0], pos, 0, Element.SCALE, rl.GREEN)
+                else
+                    rl.DrawTextureEx(textures.*[0], pos, 0, Element.SCALE, rl.WHITE);
+            }
+        },
+        .TimelineCursor => {}, // Handled externally
+        else => {
+            if (rl.CheckCollisionPointRec(mouse_pos, frame))
+                rl.DrawTextureEx(textures.*[0], element.position, 0, Element.SCALE, rl.GREEN)
+            else
+                rl.DrawTextureEx(textures.*[0], element.position, 0, Element.SCALE, rl.WHITE);
+        },
     }
 }
 

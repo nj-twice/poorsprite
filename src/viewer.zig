@@ -29,7 +29,7 @@ pub fn update(data: *Data, button_action: ?ui.ButtonAction) void {
     if (data.frames.items.len == 0) return;
     if (data.current_frame == null) return;
 
-    handleButtons(data, button_action);
+    handleInteract(data, button_action);
     handleMouseAndKeyboard(data);
 
     updateFrame(data);
@@ -46,7 +46,7 @@ pub fn draw(data: *const Data) void {
     drawHoverOutline(data);
 }
 
-fn handleButtons(data: *Data, maybe_action: ?ui.ButtonAction) void {
+fn handleInteract(data: *Data, maybe_action: ?ui.ButtonAction) void {
     if (maybe_action == null) return;
     const action = maybe_action.?;
 
@@ -58,7 +58,34 @@ fn handleButtons(data: *Data, maybe_action: ?ui.ButtonAction) void {
         .Slower => {
             if (data.fps - 1 > 0) data.fps -= 1;
         },
+        .Seek => seek(data),
+        .None => {},
     }
+}
+
+const std = @import("std");
+
+fn seek(data: *Data) void {
+    if (data.current_frame == null) return;
+
+    const ANCHOR_POS = ui.Config.TIMELINE_ANCHOR_POS;
+    const total_length: f32 = @floatFromInt(ui.getTimelineTotalLength());
+    const mouse_pos = rl.GetMousePosition();
+
+    const mouse_rel_dist: f32 = mouse_pos.x - ANCHOR_POS.x;
+    const ratio: f32 = mouse_rel_dist / total_length;
+
+    var target_frame: u32 = @floor(@as(f32, @floatFromInt(data.frames.items.len)) * ratio);
+
+    // Just in case
+    if (target_frame > data.frames.items.len - 1) {
+        target_frame = @as(u32, @intCast(data.frames.items.len)) - 1;
+    } else if (target_frame < 0) {
+        target_frame = 0;
+    }
+
+    // std.log.debug("Target frame: {d}", .{target_frame});
+    data.*.current_frame.? = target_frame;
 }
 
 fn handleMouseAndKeyboard(data: *Data) void {
